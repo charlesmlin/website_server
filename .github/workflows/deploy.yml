@@ -1,0 +1,82 @@
+name: Deploy to ECS
+
+on:
+  push:
+    branches: [master]
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REPOSITORY: personal_website/server
+  ECS_CLUSTER: personal-website-server-cluster
+  ECS_SERVICE: personal-website-server-task-service-a1t75ngb
+  TASK_FAMILY: personal-website-server-task
+  CONTAINER_NAME: server-container
+  IMAGE_TAG: latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        env:
+          IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+        run: |
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+
+      - name: Register new ECS task definition
+        id: register-task
+        env:
+          IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+        run: |
+          echo '${{ vars.TASK_ENV_VARS }}' > env.json
+          
+          TASK_DEF=$(cat <<EOF
+          {
+            "family": "${{ env.TASK_FAMILY }}",
+            "containerDefinitions": [{
+              "name": "${{ env.CONTAINER_NAME }}",
+              "image": "$IMAGE_URI",
+              "essential": true,
+              "portMappings": [{"containerPort": 80, "hostPort": 80, "protocol": "tcp", "appProtocol": "http"}],
+              "environment": $(cat env.json)
+            }],
+            "requiresCompatibilities": [
+              "FARGATE"
+            ],
+            "taskRoleArn": "${{ vars.TASK_ROLE_ARN }}",
+            "executionRoleArn": "${{ vars.EXECUTION_ROLE_ARN }}",
+            "networkMode": "awsvpc",
+            "cpu": "1024",
+            "memory": "3072"
+          }
+          EOF
+          )
+
+          echo "$TASK_DEF" > taskdef.json
+          aws ecs register-task-definition --cli-input-json file://taskdef.json > taskdef_output.json
+          TASK_DEF_ARN=$(jq -r '.taskDefinition.taskDefinitionArn' taskdef_output.json)
+          echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+
+      - name: Update ECS service to use new task definition
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ env.TASK_DEF_ARN }} \
+            --force-new-deployment
