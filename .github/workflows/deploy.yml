@@ -44,7 +44,7 @@ jobs:
         env:
           IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
         run: |
-          echo '${{ vars.TASK_ENV_VARS }}' > env.json
+          echo '${{ secrets.TASK_ENV_VARS }}' > env.json
           
           TASK_DEF=$(cat <<EOF
           {
