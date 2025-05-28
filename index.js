@@ -10,8 +10,8 @@ dotenv.config();
 const PORT = process.env.PORT || 80;
 const EXPRESS_CORS = (process.env.EXPRESS_CORS || "").split(",");
 
+const AWS_REGION = process.env.AWS_REGION;
 const S3_BUCKET = process.env.S3_BUCKET;
-const S3_REGION = process.env.S3_REGION;
 const S3_KEYS = process.env.S3_KEYS.split(","); // 'a,b,c'
 const S3_EXPIRE_SECS = 600; // 10 minutes
 const APP_SECRET = process.env.APP_SECRET;
@@ -19,6 +19,7 @@ const GOOGLE_OAUTH_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
 
 const initializeApp = (
   expressCors,
+  awsRegion,
   s3Client,
   s3BuckeName,
   s3Keys,
@@ -43,7 +44,7 @@ const initializeApp = (
     `/imageurl/:imageName(${s3KeysString})`,
     getImageUrl(s3Client, s3BuckeName, s3ExpireSecs)
   );
-  router.post("/auth", authenticate(appSecret, googleClientId));
+  router.post("/auth", authenticate(awsRegion, appSecret, googleClientId));
 
   const app = express();
   app.use(express.json());
@@ -60,10 +61,11 @@ const initializeApp = (
 };
 
 const s3Client = new S3Client({
-  region: S3_REGION,
+  region: AWS_REGION,
 });
 const app = initializeApp(
   EXPRESS_CORS,
+  AWS_REGION,
   s3Client,
   S3_BUCKET,
   S3_KEYS,
