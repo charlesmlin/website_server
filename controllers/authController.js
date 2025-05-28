@@ -9,25 +9,30 @@ const DYNAMO_DB_USER_ROLE_INDEX = "provider_provider_id_index";
 // Query AWS DynamoDB and return role for given provider and its corresponding id
 // To query for user roles from Amazon DynamoDB table using an index, IAM policy "dynamodb:Query" needs to be granted
 const getUserRoles = async (awsRegion, provider, providerId) => {
-  const dynamoClient = new DynamoDBClient({ region: awsRegion });
-  const docClient = DynamoDBDocumentClient.from(dynamoClient);
+  try {
+    const dynamoClient = new DynamoDBClient({ region: awsRegion });
+    const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-  const command = new QueryCommand({
-    TableName: DYNAMO_DB_TABLE_NAME,
-    IndexName: DYNAMO_DB_USER_ROLE_INDEX,
-    KeyConditionExpression:
-      "provider = :provider AND provider_id = :provider_id",
-    ProjectionExpression: "#r",
-    ExpressionAttributeValues: {
-      ":provider": provider,
-      ":provider_id": providerId,
-    },
-    ExpressionAttributeNames: {
-      "#r": "role",
-    },
-  });
-  const result = await docClient.send(command);
-  return result.Items?.map((item) => item.role).filter(Boolean) || [];
+    const command = new QueryCommand({
+      TableName: DYNAMO_DB_TABLE_NAME,
+      IndexName: DYNAMO_DB_USER_ROLE_INDEX,
+      KeyConditionExpression:
+        "provider = :provider AND provider_id = :provider_id",
+      ProjectionExpression: "#r",
+      ExpressionAttributeValues: {
+        ":provider": provider,
+        ":provider_id": providerId,
+      },
+      ExpressionAttributeNames: {
+        "#r": "role",
+      },
+    });
+    const result = await docClient.send(command);
+    return result.Items?.map((item) => item.role).filter(Boolean) || [];
+  } catch (error) {
+    console.error("Error encountered: ", error);
+    return undefined;
+  }
 };
 
 const generateAppToken = (appSecret, provider, email, name) => {
@@ -82,6 +87,9 @@ const authenticate = (awsRegion, appSecret, googleClientId) => {
         response.provider,
         response.provider_id
       );
+      if (userRoles === undefined) {
+        res.status(500).json({ success: false, message: "Query error" });
+      }
       if (userRoles.length <= 0) {
         res.status(403).json({ success: false, message: "Role not found" });
         return;
