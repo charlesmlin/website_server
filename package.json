@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
+    "dev": "DOTENV_CONFIG_PATH=.env.local nodemon -r dotenv/config index.js",
     "test": "jest"
   },
   "dependencies": {
