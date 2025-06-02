@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import getImageUrl from "./controllers/imageController.js";
 import authenticate from "./controllers/authController.js";
+import certController from "./controllers/certController.js";
 import { S3Client } from "@aws-sdk/client-s3";
 
 dotenv.config();
@@ -43,6 +44,14 @@ const initializeApp = (
   router.get(
     `/imageurl/:imageName(${s3KeysString})`,
     getImageUrl(s3Client, s3BuckeName, s3ExpireSecs)
+  );
+  router.get(
+    "/aws/count/:certification",
+    certController.getCertCount(awsRegion)
+  );
+  router.get(
+    `/aws/question/:certification/:number`,
+    certController.getCertQuestion(awsRegion)
   );
   router.post("/auth", authenticate(awsRegion, appSecret, googleClientId));
 
