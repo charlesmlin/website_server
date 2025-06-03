@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand } from "@aws-sdk/lib-dynamodb";
+import awsClient from "../utils/awsClient.js";
 
 const ISSUER_SOURCES = ["https://accounts.google.com", "accounts.google.com"];
 const DYNAMO_DB_TABLE_NAME = "website-users";
@@ -10,9 +10,7 @@ const DYNAMO_DB_USER_ROLE_INDEX = "provider_provider_id_index";
 // To query for user roles from Amazon DynamoDB table using an index, IAM policy "dynamodb:Query" needs to be granted
 const getUserRoles = async (awsRegion, provider, providerId) => {
   try {
-    const dynamoClient = new DynamoDBClient({ region: awsRegion });
-    const docClient = DynamoDBDocumentClient.from(dynamoClient);
-
+    const client = awsClient.getDynamoDocClient(awsRegion);
     const command = new QueryCommand({
       TableName: DYNAMO_DB_TABLE_NAME,
       IndexName: DYNAMO_DB_USER_ROLE_INDEX,
@@ -27,7 +25,7 @@ const getUserRoles = async (awsRegion, provider, providerId) => {
         "#r": "role",
       },
     });
-    const result = await docClient.send(command);
+    const result = await client.send(command);
     return result.Items?.map((item) => item.role).filter(Boolean) || [];
   } catch (error) {
     console.error("Error encountered: ", error);

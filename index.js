@@ -47,11 +47,11 @@ const initializeApp = (
   );
   router.get(
     "/aws/count/:certification",
-    certController.getCertCount(awsRegion)
+    certController.getQuestionCountPromise(awsRegion)
   );
   router.get(
-    `/aws/question/:certification/:number`,
-    certController.getCertQuestion(awsRegion)
+    `/aws/question/:id/:certification/:number`,
+    certController.getQuestionWithIndexPromise(awsRegion)
   );
   router.post("/auth", authenticate(awsRegion, appSecret, googleClientId));
 
