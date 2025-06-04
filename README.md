@@ -8,7 +8,7 @@ docker build -t website_server .
 To test docker image, run:
 
 ```
-docker run --env-file .env.local -p 3000:80 website_server
+docker run --env-file .env.local -p 3000:3000 website_server
 ```
 
 To kill docker image, run:

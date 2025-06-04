@@ -35,7 +35,7 @@ const getQuestionCountPromise = (awsRegion) => {
 
 const getQuestion = async (awsRegion, certification, questionNumber) => {
   const client = awsClient.getDynamoDocClient(awsRegion);
-  const command = new QueryCommand({
+  const queryCommand = {
     TableName: DYNAMO_DB_TABLE_NAME,
     KeyConditionExpression: "certification = :cert AND question_number = :qnum",
     ExpressionAttributeValues: {
@@ -43,9 +43,10 @@ const getQuestion = async (awsRegion, certification, questionNumber) => {
       ":qnum": Number(questionNumber),
     },
     Limit: 1,
-  });
+  };
+  const command = new QueryCommand(queryCommand);
   const result = await client.send(command);
-  return result.Items[0];
+  return result.Items?.[0];
 };
 
 const getQuestionPromise = (awsRegion) => {
@@ -77,25 +78,24 @@ const getQuestionWithIndexPromise = (awsRegion) => {
       const certification = req.params.certification;
       const questionRequested = req.params.number;
       const questionCount = await getQuestionCount(awsRegion, certification);
-      console.log(`questionCount = ${questionCount}`);
       // Assumption: Question number is numbered sequentially in the database
       const randomNumber = getRandomNumber(
         userId + certification,
         questionRequested
       );
       const questionNumber = (randomNumber % questionCount) + 1;
-      console.log(`questionNumber = ${questionNumber}`);
       const item = await getQuestion(awsRegion, certification, questionNumber);
-      console.log(`item = ${item}`);
       if (item === undefined) {
         res.status(404).json({ success: false, message: "Record not found" });
         return;
       }
-      const keySet = new Set(["question", "options", "answer"]);
-      const result = Array.from(item).filter(([key, _]) => keySet.has(key));
-      result.question_number = questionRequested;
-      result.success = true;
-      res.json(result);
+      const keySet = new Set(["question", "options", "answer", "explanation"]);
+      const itemReturn = Object.fromEntries(
+        Object.entries(item).filter(([key, _]) => keySet.has(key))
+      );
+      itemReturn.question_number = questionRequested;
+      itemReturn.success = true;
+      res.json(itemReturn);
     } catch (error) {
       console.error("Error encountered: ", error);
       res.status(500).json({ success: false, message: "Query error" });

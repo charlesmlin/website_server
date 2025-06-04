@@ -12,3 +12,4 @@ npm-debug.log
 env.template
 README.md
 env_to_json.sh
+scripts
